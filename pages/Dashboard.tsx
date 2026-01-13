@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Submission } from '../types';
 import { APP_CONFIG } from '../constants';
-import { Lock, FileSpreadsheet, Download, Upload, ExternalLink, Link2, Search, Filter, Copy, Check, Github, Globe, HelpCircle, Code } from 'lucide-react';
+import { Lock, FileSpreadsheet, Download, Upload, ExternalLink, Link2, Search, Filter, Copy, Check, Github, Globe, HelpCircle, Code, AlertTriangle, Settings } from 'lucide-react';
 
 interface DashboardProps {
   submissions: Submission[];
@@ -243,61 +243,97 @@ function doGet() {
         </>
       ) : (
         <div className="space-y-6 animate-fade-in">
-          {/* Copy Script Section */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-              <div className="flex items-center gap-3">
-                <Code className="text-[#0059A1]" />
-                <h3 className="font-bold text-gray-900">Google Apps Script (GAS)</h3>
-              </div>
-              <button 
-                onClick={copyToClipboard}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all ${copied ? 'bg-green-500 text-white' : 'bg-[#0059A1] text-white'}`}
-              >
-                {copied ? <Check size={16} /> : <Copy size={16} />}
-                {copied ? 'Tersalin!' : 'Salin Kode'}
-              </button>
-            </div>
-            <div className="p-0">
-              <pre className="p-6 text-sm font-mono text-gray-600 bg-gray-900 overflow-x-auto max-h-[400px]">
-                <code>{gasCode}</code>
-              </pre>
+          {/* Troubleshooting Alert */}
+          <div className="bg-amber-50 border-2 border-amber-200 p-6 rounded-2xl flex items-start gap-4">
+            <AlertTriangle className="text-amber-600 shrink-0 mt-1" size={24} />
+            <div>
+              <h3 className="font-bold text-amber-900">Solusi Layar Kosong (Blank Screen) di Vercel</h3>
+              <p className="text-sm text-amber-800 mt-1 leading-relaxed">
+                Jika setelah klik link Vercel layar tetap kosong, pastikan Anda telah melakukan <b>PUSH</b> file <code className="bg-amber-100 px-1 rounded">package.json</code>, <code className="bg-amber-100 px-1 rounded">vite.config.ts</code>, dan <code className="bg-amber-100 px-1 rounded">index.html</code> terbaru ke GitHub. Vercel membutuhkan file tersebut untuk memproses kode <i>.tsx</i> menjadi tampilan web.
+              </p>
             </div>
           </div>
 
-          {/* Deployment Guides */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-              <div className="flex items-center gap-3 mb-4">
-                <Github className="text-gray-900" />
-                <h3 className="font-bold text-gray-900">Petunjuk GitHub</h3>
-              </div>
-              <ul className="space-y-3 text-sm text-gray-600">
-                <li className="flex gap-2"><span>1.</span> Simpan file <code>index.html</code> dan <code>index.tsx</code> di root (bukan folder src).</li>
-                <li className="flex gap-2"><span>2.</span> Masukkan <code>vercel.json</code> agar routing SPA aktif.</li>
-                <li className="flex gap-2"><span>3.</span> Push ke repository publik atau privat Anda.</li>
-              </ul>
+          {/* Master Guide Vercel */}
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-[#0059A1] p-6 text-white flex items-center gap-3">
+              <Settings />
+              <h3 className="text-xl font-bold">Master Guide: Konfigurasi Vercel & GitHub</h3>
             </div>
+            
+            <div className="p-8 space-y-8">
+              <section className="space-y-4">
+                <div className="flex items-center gap-3 text-[#0059A1]">
+                  <Github size={24} />
+                  <h4 className="font-bold text-lg">Langkah 1: Persiapan GitHub</h4>
+                </div>
+                <div className="grid md:grid-cols-2 gap-4 text-sm">
+                  <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                    <p className="font-bold text-gray-700 mb-2">Struktur File Wajib:</p>
+                    <ul className="space-y-1 font-mono text-gray-500">
+                      <li>├── index.html (Root)</li>
+                      <li>├── index.tsx (Root)</li>
+                      <li>├── package.json (Root)</li>
+                      <li>├── vite.config.ts (Root)</li>
+                      <li>└── vercel.json (Root)</li>
+                    </ul>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                    <p className="font-bold text-gray-700 mb-2">Instruksi Push:</p>
+                    <p className="text-gray-600 italic">"Gunakan perintah git add . && git commit -m 'Setup build' && git push origin main agar semua file masuk ke Vercel."</p>
+                  </div>
+                </div>
+              </section>
 
-            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-              <div className="flex items-center gap-3 mb-4 text-[#0059A1]">
-                <Globe />
-                <h3 className="font-bold text-gray-900">Petunjuk Vercel (Solusi Blank Screen)</h3>
-              </div>
-              <ul className="space-y-3 text-sm text-gray-600">
-                <li className="flex gap-2"><span>1.</span> Import repo dari GitHub ke Vercel.</li>
-                <li className="flex gap-2"><span>2.</span> <strong>Build Settings:</strong> Jika blank, set <i>Build Command</i> ke <code>npm run build</code> dan <i>Output Directory</i> ke <code>dist</code>.</li>
-                <li className="flex gap-2"><span>3.</span> <strong>Rewrites:</strong> Pastikan <code>vercel.json</code> sudah ada di repo untuk mengarahkan rute ke index.html.</li>
-                <li className="flex gap-2 text-red-600 font-medium"><span>4.</span> Jika masih kosong, cek console log di browser untuk melihat error import module.</li>
-              </ul>
+              <hr className="border-gray-100" />
+
+              <section className="space-y-4">
+                <div className="flex items-center gap-3 text-blue-600">
+                  <Globe size={24} />
+                  <h4 className="font-bold text-lg">Langkah 2: Pengaturan di Dashboard Vercel</h4>
+                </div>
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-600">Saat mengimport repository di Vercel, pastikan pengaturan <b>Build & Development Settings</b> diisi seperti berikut:</p>
+                  <div className="bg-gray-900 p-6 rounded-2xl text-blue-300 font-mono text-sm space-y-2">
+                    <div className="flex justify-between border-b border-gray-800 pb-2"><span className="text-gray-500">Framework Preset</span> <span>Vite</span></div>
+                    <div className="flex justify-between border-b border-gray-800 pb-2"><span className="text-gray-500">Root Directory</span> <span>./ (kosongkan)</span></div>
+                    <div className="flex justify-between border-b border-gray-800 pb-2"><span className="text-gray-500">Build Command</span> <span>npm run build</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Output Directory</span> <span>dist</span></div>
+                  </div>
+                </div>
+              </section>
+
+              <hr className="border-gray-100" />
+
+              <section className="space-y-4">
+                <div className="flex items-center gap-3 text-purple-600">
+                  <Code size={24} />
+                  <h4 className="font-bold text-lg">Langkah 3: Google Apps Script (Script Wajib)</h4>
+                </div>
+                <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden">
+                   <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-100">
+                    <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Salin Kode Ini ke Apps Script</span>
+                    <button 
+                      onClick={copyToClipboard}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all text-xs ${copied ? 'bg-green-500 text-white' : 'bg-[#0059A1] text-white'}`}
+                    >
+                      {copied ? <Check size={14} /> : <Copy size={14} />}
+                      {copied ? 'Tersalin!' : 'Salin Kode'}
+                    </button>
+                  </div>
+                  <pre className="p-6 text-xs font-mono text-gray-400 bg-gray-900 overflow-x-auto max-h-[300px]">
+                    <code>{gasCode}</code>
+                  </pre>
+                </div>
+              </section>
             </div>
           </div>
           
           <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 flex gap-4">
             <HelpCircle className="text-[#0059A1] shrink-0" />
             <div>
-              <p className="font-bold text-[#0059A1]">Masih ada kendala?</p>
-              <p className="text-sm text-blue-800 mt-1">Gunakan HashRouter (sudah terpasang di App.tsx) karena paling kompatibel dengan Vercel tanpa konfigurasi server tambahan.</p>
+              <p className="font-bold text-[#0059A1]">Tips Tambahan</p>
+              <p className="text-sm text-blue-800 mt-1">Jika Anda baru saja mengubah URL Web App di <b>constants.ts</b>, pastikan Anda men-deploy ulang Vercel agar perubahan tersimpan di website live.</p>
             </div>
           </div>
         </div>
