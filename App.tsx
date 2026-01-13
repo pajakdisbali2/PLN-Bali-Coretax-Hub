@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { LayoutDashboard, FileInput, BarChart3, ShieldCheck, Zap, Menu, X } from 'lucide-react';
 import InputData from './pages/InputData';
@@ -13,41 +13,41 @@ const App: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
 
-  // Sync data from Google Sheets on Load
-  useEffect(() => {
-    const fetchSheetData = async () => {
-      setSyncStatus('connecting');
-      try {
-        const response = await fetch(APP_CONFIG.WEB_APP_URL);
-        if (!response.ok) throw new Error("Network response was not ok");
-        const data = await response.json();
-        
-        // Skip header row if data exists
-        if (data && data.length > 1) {
-          const mappedData: Submission[] = data.slice(1).map((row: any[], index: number) => ({
-            id: index.toString(),
-            timestamp: row[0],
-            nama: row[1],
-            nip: row[2]?.toString().replace(/'/g, ''), // Clean NIP formatting
-            unit: row[3] as UnitName,
-            buktiSertifikatUrl: row[4],
-            suratKodeDJPUrl: row[5],
-            npwpStatus: row[6] as "Gabung" | "Pisah"
-          }));
-          setSubmissions(mappedData);
-          localStorage.setItem('pln_submissions', JSON.stringify(mappedData));
-        }
-        setSyncStatus('connected');
-      } catch (error) {
-        console.warn("Could not sync with Google Sheets, using local backup.");
-        setSyncStatus('error');
-        const saved = localStorage.getItem('pln_submissions');
-        if (saved) setSubmissions(JSON.parse(saved));
+  const fetchSheetData = useCallback(async () => {
+    setSyncStatus('connecting');
+    try {
+      const response = await fetch(`${APP_CONFIG.WEB_APP_URL}?t=${new Date().getTime()}`);
+      if (!response.ok) throw new Error("Network response was not ok");
+      const data = await response.json();
+      
+      if (data && data.length > 1) {
+        const mappedData: Submission[] = data.slice(1).map((row: any[], index: number) => ({
+          id: index.toString(),
+          timestamp: row[0],
+          nama: row[1],
+          nip: row[2]?.toString().replace(/'/g, ''),
+          unit: row[3] as UnitName,
+          buktiSertifikatUrl: row[4],
+          suratKodeDJPUrl: row[5],
+          npwpStatus: row[6] as "Gabung" | "Pisah"
+        }));
+        setSubmissions(mappedData);
+        localStorage.setItem('pln_submissions', JSON.stringify(mappedData));
+      } else if (data && data.length <= 1) {
+        setSubmissions([]);
       }
-    };
-
-    fetchSheetData();
+      setSyncStatus('connected');
+    } catch (error) {
+      console.warn("Could not sync with Google Sheets, using local backup.");
+      setSyncStatus('error');
+      const saved = localStorage.getItem('pln_submissions');
+      if (saved) setSubmissions(JSON.parse(saved));
+    }
   }, []);
+
+  useEffect(() => {
+    fetchSheetData();
+  }, [fetchSheetData]);
 
   const addSubmission = (newSub: Submission) => {
     const updated = [newSub, ...submissions];
@@ -75,7 +75,6 @@ const App: React.FC = () => {
   return (
     <HashRouter>
       <div className="flex flex-col md:flex-row min-h-screen bg-gray-50">
-        {/* Sidebar for Desktop */}
         <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-200 sticky top-0 h-screen shadow-sm">
           <div className="p-8 flex items-center gap-3 bg-[#0059A1]">
             <Zap className="text-[#FFD100]" fill="#FFD100" size={32} />
@@ -99,7 +98,6 @@ const App: React.FC = () => {
           </div>
         </aside>
 
-        {/* Mobile Header */}
         <header className="md:hidden bg-[#0059A1] text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-md">
           <div className="flex items-center gap-2">
             <Zap className="text-[#FFD100]" fill="#FFD100" size={24} />
@@ -110,7 +108,6 @@ const App: React.FC = () => {
           </button>
         </header>
 
-        {/* Mobile Menu Overlay */}
         {isMobileMenuOpen && (
           <div className="md:hidden fixed inset-0 bg-white z-40 flex flex-col pt-20">
             <NavItem to="/input" icon={FileInput}>Input Data</NavItem>
@@ -119,13 +116,12 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Main Content */}
         <main className="flex-1 w-full max-w-6xl mx-auto p-4 md:p-10">
           <Routes>
             <Route path="/" element={<Navigate to="/input" replace />} />
             <Route path="/input" element={<InputData onAdd={addSubmission} />} />
             <Route path="/recap" element={<RecapData submissions={submissions} />} />
-            <Route path="/dashboard" element={<Dashboard submissions={submissions} syncStatus={syncStatus} />} />
+            <Route path="/dashboard" element={<Dashboard submissions={submissions} syncStatus={syncStatus} onRefresh={fetchSheetData} />} />
           </Routes>
         </main>
       </div>

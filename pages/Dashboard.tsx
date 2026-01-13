@@ -2,30 +2,27 @@
 import React, { useState, useRef } from 'react';
 import { Submission, UnitName } from '../types';
 import { APP_CONFIG } from '../constants';
-import { Lock, FileSpreadsheet, Download, Upload, ExternalLink, Link2, Search, Copy, Check, Code, ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react';
+import { Lock, FileSpreadsheet, Download, Upload, ExternalLink, Link2, Search, Copy, Check, Code, ShieldCheck, AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
 
 interface DashboardProps {
   submissions: Submission[];
   syncStatus: 'connecting' | 'connected' | 'error';
+  onRefresh: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ submissions, syncStatus }) => {
+const Dashboard: React.FC<DashboardProps> = ({ submissions, syncStatus, onRefresh }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [search, setSearch] = useState('');
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'data' | 'config'>('data');
+  const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const gasCode = `/**
  * GOOGLE APPS SCRIPT - PLN CORETAX HUB SYNC
- * 1. Buka Google Sheet (https://docs.google.com/spreadsheets/d/1V4TsEVXv4Y5F7OzGuxV9Q-AiLh30sBnmW5JwHn1c3dg/edit)
- * 2. Menu Extensions -> Apps Script
- * 3. Copy/Paste kode ini dan simpan
- * 4. Deploy sebagai Web App (Akses: Anyone)
  */
-
 const SHEET_ID = '1V4TsEVXv4Y5F7OzGuxV9Q-AiLh30sBnmW5JwHn1c3dg';
 const FOLDER_ID = '1HL7NFQ8t_7MIBh5tS5Ge2vvWNJNtoMUb';
 
@@ -36,14 +33,14 @@ function doPost(e) {
     const sheet = ss.getSheets()[0];
     const folder = DriveApp.getFolderById(FOLDER_ID);
 
-    let sertifikatUrl = "";
+    let sertifikatUrl = data.buktiSertifikatUrl || "";
     if (data.file1) {
       const file1Blob = Utilities.newBlob(Utilities.base64Decode(data.file1.data), data.file1.mimeType, "Sertifikat_" + data.nip + "_" + data.nama);
       const file1 = folder.createFile(file1Blob);
       sertifikatUrl = file1.getUrl();
     }
 
-    let djpUrl = "";
+    let djpUrl = data.suratKodeDJPUrl || "";
     if (data.file2) {
       const file2Blob = Utilities.newBlob(Utilities.base64Decode(data.file2.data), data.file2.mimeType, "KodeDJP_" + data.nip + "_" + data.nama);
       const file2 = folder.createFile(file2Blob);
@@ -92,6 +89,10 @@ function doGet() {
   };
 
   const handleExport = () => {
+    if (submissions.length === 0) {
+      alert("Tidak ada data untuk di-export.");
+      return;
+    }
     const headers = ["Timestamp", "Nama Pegawai", "NIP", "Unit", "Bukti Sertifikat", "Surat DJP", "Status NPWP"];
     const csvContent = [
       headers.join(","),
@@ -117,29 +118,61 @@ function doGet() {
   };
 
   const handleDownloadTemplate = () => {
-    const headers = ["Nama Pegawai", "NIP", "Unit", "NPWP Status (Gabung/Pisah)"];
+    const headers = ["Nama Pegawai", "NIP", "Unit", "Status NPWP (Gabung/Pisah)"];
     const csvContent = [headers.join(",")].join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", "Template_Upload_PLN.csv");
+    link.setAttribute("download", "Template_Upload_Masal_PLN.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const text = event.target?.result as string;
-        alert("Fitur Import Berhasil Membaca Data. Di tahap ini, data dibaca secara lokal. Untuk integrasi penuh masal ke Sheets, hubungi Administrator.");
-        console.log("CSV Data:", text);
-      };
-      reader.readAsText(file);
-    }
+    if (!file) return;
+
+    setImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      const lines = text.split("\n");
+      const dataToImport = lines.slice(1).filter(line => line.trim() !== "");
+
+      let successCount = 0;
+      for (const line of dataToImport) {
+        const [nama, nip, unit, npwpStatus] = line.split(",").map(item => item.trim().replace(/^"|"$/g, ''));
+        
+        if (nama && nip && unit && npwpStatus) {
+          try {
+            await fetch(APP_CONFIG.WEB_APP_URL, {
+              method: 'POST',
+              mode: 'no-cors',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                nama, 
+                nip, 
+                unit, 
+                npwpStatus,
+                buktiSertifikatUrl: "-",
+                suratKodeDJPUrl: "-"
+              })
+            });
+            successCount++;
+          } catch (err) {
+            console.error("Gagal mengimpor baris:", line);
+          }
+        }
+      }
+
+      setImporting(false);
+      alert(`Import Selesai! ${successCount} data berhasil diunggah ke Database.`);
+      onRefresh(); // Sinkronisasi ulang tabel
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+    reader.readAsText(file);
   };
 
   const filteredData = submissions.filter(s => 
@@ -157,7 +190,7 @@ function doGet() {
               <Lock size={32} />
             </div>
             <h2 className="text-2xl font-bold text-gray-900">Admin Dashboard</h2>
-            <p className="text-gray-500 mt-2">Sistem ini diproteksi, harap login untuk melanjutkan.</p>
+            <p className="text-gray-500 mt-2">Login untuk manajemen database masal.</p>
           </div>
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
@@ -206,13 +239,13 @@ function doGet() {
                 onClick={() => setActiveTab('config')}
                 className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'config' ? 'bg-[#0059A1] text-white' : 'bg-gray-100 text-gray-500'}`}
               >
-                Konfigurasi Cloud
+                Salin Script
               </button>
             </div>
           </div>
           <div className={`p-4 rounded-2xl border flex flex-col items-center justify-center transition-all ${syncStatus === 'connected' ? 'bg-green-50 border-green-200 text-green-700' : syncStatus === 'connecting' ? 'bg-yellow-50 border-yellow-200 text-yellow-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
             {syncStatus === 'connected' ? <ShieldCheck size={24} /> : syncStatus === 'connecting' ? <RefreshCw className="animate-spin" size={24} /> : <AlertCircle size={24} />}
-            <span className="text-[10px] font-bold uppercase mt-1">Status: {syncStatus}</span>
+            <span className="text-[10px] font-bold uppercase mt-1">Cloud: {syncStatus}</span>
           </div>
         </div>
         
@@ -225,16 +258,18 @@ function doGet() {
             <Download size={18} /> Template
           </button>
           <button 
+            disabled={importing}
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-5 py-3 bg-blue-50 text-[#0059A1] rounded-xl font-bold hover:bg-blue-100 transition-all text-sm shadow-sm border border-blue-100"
+            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold transition-all text-sm shadow-sm border ${importing ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-blue-50 text-[#0059A1] border-blue-100 hover:bg-blue-100'}`}
           >
-            <Upload size={18} /> Import Data
+            {importing ? <Loader2 className="animate-spin" size={18} /> : <Upload size={18} />}
+            {importing ? 'Mengimpor...' : 'Import Masal'}
           </button>
           <button 
             onClick={handleExport}
             className="flex items-center gap-2 px-5 py-3 bg-[#FFD100] text-[#0059A1] rounded-xl font-bold hover:brightness-95 transition-all text-sm shadow-sm"
           >
-            <FileSpreadsheet size={18} /> Export Data
+            <FileSpreadsheet size={18} /> Export CSV
           </button>
         </div>
       </div>
@@ -246,68 +281,74 @@ function doGet() {
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-green-50 text-green-600 rounded-lg"><FileSpreadsheet size={20} /></div>
                 <div>
-                  <p className="font-bold text-gray-900">Database Spreadsheet</p>
-                  <p className="text-xs text-gray-500">Sync status: {syncStatus === 'connected' ? 'Connected' : 'Syncing...'}</p>
+                  <p className="font-bold text-gray-900">Database Live</p>
+                  <p className="text-xs text-gray-500">Total data: {submissions.length} entri</p>
                 </div>
               </div>
               <ExternalLink size={16} className="text-gray-400 group-hover:text-green-500" />
             </a>
-            <a href={APP_CONFIG.DRIVE_FOLDER_URL} target="_blank" className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between hover:border-blue-300 group">
+            <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Link2 size={20} /></div>
+                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><RefreshCw size={20} className={syncStatus === 'connecting' ? 'animate-spin' : ''} /></div>
                 <div>
-                  <p className="font-bold text-gray-900">Drive Cloud Folder</p>
-                  <p className="text-xs text-gray-500">Location: File Coretax</p>
+                  <p className="font-bold text-gray-900">Sinkronisasi Tabel</p>
+                  <button onClick={onRefresh} className="text-xs text-blue-600 hover:underline">Klik untuk refresh tabel sekarang</button>
                 </div>
               </div>
-              <ExternalLink size={16} className="text-gray-400 group-hover:text-blue-500" />
-            </a>
+              <button onClick={onRefresh} className="p-2 hover:bg-gray-50 rounded-lg transition-all"><RefreshCw size={16} /></button>
+            </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-            <div className="p-6 border-b border-gray-50 flex flex-col md:flex-row justify-between gap-4">
-              <div className="relative flex-1">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-6 border-b border-gray-50 bg-gray-50/50">
+              <div className="relative max-w-md">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input
                   type="text"
                   placeholder="Cari Nama, NIP atau Unit..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-gray-50 rounded-xl outline-none focus:ring-2 focus:ring-[#0059A1] transition-all"
+                  className="w-full pl-12 pr-4 py-3 bg-white rounded-xl border border-gray-100 outline-none focus:ring-2 focus:ring-[#0059A1] transition-all"
                 />
               </div>
             </div>
             
             <div className="overflow-x-auto">
               <table className="w-full text-left">
-                <thead className="bg-gray-50">
+                <thead className="bg-gray-50/50">
                   <tr>
                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Nama</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">NIP</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Unit</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Sertifikat</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">NPWP</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">File Sertifikat</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">NPWP</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredData.length > 0 ? filteredData.map((sub) => (
-                    <tr key={sub.id} className="hover:bg-gray-50">
+                    <tr key={sub.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4 font-semibold text-gray-900">{sub.nama}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{sub.nip}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600 font-mono">{sub.nip}</td>
                       <td className="px-6 py-4">
-                        <span className="px-3 py-1 bg-blue-50 text-[#0059A1] text-xs font-bold rounded-full">{sub.unit}</span>
+                        <span className="px-3 py-1 bg-blue-50 text-[#0059A1] text-[10px] font-bold rounded-full uppercase tracking-wider">{sub.unit}</span>
                       </td>
                       <td className="px-6 py-4">
-                        <a href={sub.buktiSertifikatUrl} target="_blank" className="text-blue-600 hover:underline flex items-center gap-1 text-xs">
-                          <Link2 size={12} /> Buka
-                        </a>
+                        {sub.buktiSertifikatUrl && sub.buktiSertifikatUrl !== "-" ? (
+                          <a href={sub.buktiSertifikatUrl} target="_blank" className="text-blue-600 hover:underline flex items-center gap-1 text-xs font-medium">
+                            <Link2 size={12} /> Buka Link Drive
+                          </a>
+                        ) : (
+                          <span className="text-gray-400 text-xs italic">Tanpa File</span>
+                        )}
                       </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1 text-xs font-bold rounded-full ${sub.npwpStatus === 'Gabung' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{sub.npwpStatus}</span>
+                      <td className="px-6 py-4 text-center">
+                        <span className={`px-3 py-1 text-[10px] font-bold rounded-full uppercase tracking-wider ${sub.npwpStatus === 'Gabung' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{sub.npwpStatus}</span>
                       </td>
                     </tr>
                   )) : (
-                    <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-500">Tidak ada data.</td></tr>
+                    <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                      {syncStatus === 'connecting' ? <div className="flex flex-col items-center gap-2"><Loader2 className="animate-spin text-blue-600" /> Sinkronisasi data...</div> : 'Data tidak ditemukan.'}
+                    </td></tr>
                   )}
                 </tbody>
               </table>
@@ -334,14 +375,6 @@ function doGet() {
               <pre className="p-8 text-sm font-mono text-gray-400 bg-gray-900 overflow-x-auto max-h-[500px] leading-relaxed">
                 <code>{gasCode}</code>
               </pre>
-            </div>
-          </div>
-          
-          <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 flex gap-4">
-            <RefreshCw className="text-[#0059A1] shrink-0" />
-            <div>
-              <p className="font-bold text-[#0059A1]">Penting!</p>
-              <p className="text-sm text-blue-800 mt-1">Pastikan Anda telah melakukan "Deploy" sebagai Web App di Google Apps Script editor dengan akses "Anyone" agar sinkronisasi berfungsi dengan benar.</p>
             </div>
           </div>
         </div>
