@@ -1,0 +1,7 @@
+{
+  "name": "PLN Bali Coretax HUB",
+  "description": "A modern data input and management system for PLN Coretax, featuring automated sync with Google Sheets and Drive, real-time data recap, and a secure dashboard.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
