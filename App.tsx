@@ -5,34 +5,43 @@ import { LayoutDashboard, FileInput, BarChart3, ShieldCheck, Zap, Menu, X } from
 import InputData from './pages/InputData';
 import RecapData from './pages/RecapData';
 import Dashboard from './pages/Dashboard';
-import { Submission } from './types';
+import { Submission, UnitName } from './types';
+import { APP_CONFIG } from './constants';
 
 const App: React.FC = () => {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Initialize with some dummy data for preview
+  // Sync data from Google Sheets on Load
   useEffect(() => {
-    const saved = localStorage.getItem('pln_submissions');
-    if (saved) {
-      setSubmissions(JSON.parse(saved));
-    } else {
-      // Mock data to show something on first load
-      const mock: Submission[] = [
-        {
-          id: '1',
-          nama: 'Budi Santoso',
-          nip: '9213445Z',
-          unit: 'UID Bali',
-          buktiSertifikatUrl: '#',
-          suratKodeDJPUrl: '#',
-          npwpStatus: 'Gabung',
-          timestamp: new Date().toISOString()
+    const fetchSheetData = async () => {
+      try {
+        const response = await fetch(APP_CONFIG.WEB_APP_URL);
+        const data = await response.json();
+        
+        // Skip header row if data exists
+        if (data && data.length > 1) {
+          const mappedData: Submission[] = data.slice(1).map((row: any[], index: number) => ({
+            id: index.toString(),
+            timestamp: row[0],
+            nama: row[1],
+            nip: row[2]?.toString().replace(/'/g, ''), // Clean NIP formatting
+            unit: row[3] as UnitName,
+            buktiSertifikatUrl: row[4],
+            suratKodeDJPUrl: row[5],
+            npwpStatus: row[6] as "Gabung" | "Pisah"
+          }));
+          setSubmissions(mappedData);
+          localStorage.setItem('pln_submissions', JSON.stringify(mappedData));
         }
-      ];
-      setSubmissions(mock);
-      localStorage.setItem('pln_submissions', JSON.stringify(mock));
-    }
+      } catch (error) {
+        console.warn("Could not sync with Google Sheets, using local backup.");
+        const saved = localStorage.getItem('pln_submissions');
+        if (saved) setSubmissions(JSON.parse(saved));
+      }
+    };
+
+    fetchSheetData();
   }, []);
 
   const addSubmission = (newSub: Submission) => {
@@ -80,7 +89,7 @@ const App: React.FC = () => {
           <div className="p-6 border-t border-gray-100">
             <div className="flex items-center gap-2 text-xs text-gray-400 font-medium">
               <ShieldCheck size={14} />
-              <span>Sistem Terverifikasi</span>
+              <span>Cloud Sync Active</span>
             </div>
           </div>
         </aside>

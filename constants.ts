@@ -12,6 +12,8 @@ export const UNIT_TOTALS: UnitStats[] = [
 ];
 
 export const APP_CONFIG = {
+  // GANTI URL DI BAWAH INI DENGAN URL WEB APP DARI GOOGLE APPS SCRIPT ANDA
+  WEB_APP_URL: "https://script.google.com/macros/s/YOUR_DEPLOYED_SCRIPT_ID/exec",
   GOOGLE_SHEET_URL: "https://docs.google.com/spreadsheets/d/1V4TsEVXv4Y5F7OzGuxV9Q-AiLh30sBnmW5JwHn1c3dg/edit",
   DRIVE_FOLDER_URL: "https://drive.google.com/drive/u/0/folders/1HL7NFQ8t_7MIBh5tS5Ge2vvWNJNtoMUb",
   ADMIN_EMAIL: "pajak.disbali2@gmail.com",
