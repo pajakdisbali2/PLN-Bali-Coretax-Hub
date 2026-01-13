@@ -1,20 +1,22 @@
 
-import React, { useState } from 'react';
-import { Submission } from '../types';
+import React, { useState, useRef } from 'react';
+import { Submission, UnitName } from '../types';
 import { APP_CONFIG } from '../constants';
-import { Lock, FileSpreadsheet, Download, Upload, ExternalLink, Link2, Search, Filter, Copy, Check, Github, Globe, HelpCircle, Code, AlertTriangle, Settings } from 'lucide-react';
+import { Lock, FileSpreadsheet, Download, Upload, ExternalLink, Link2, Search, Copy, Check, Code, ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react';
 
 interface DashboardProps {
   submissions: Submission[];
+  syncStatus: 'connecting' | 'connected' | 'error';
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ submissions }) => {
+const Dashboard: React.FC<DashboardProps> = ({ submissions, syncStatus }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [search, setSearch] = useState('');
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'data' | 'config'>('data');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const gasCode = `/**
  * GOOGLE APPS SCRIPT - PLN CORETAX HUB SYNC
@@ -89,6 +91,57 @@ function doGet() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleExport = () => {
+    const headers = ["Timestamp", "Nama Pegawai", "NIP", "Unit", "Bukti Sertifikat", "Surat DJP", "Status NPWP"];
+    const csvContent = [
+      headers.join(","),
+      ...submissions.map(s => [
+        s.timestamp,
+        `"${s.nama}"`,
+        `'${s.nip}`,
+        `"${s.unit}"`,
+        s.buktiSertifikatUrl,
+        s.suratKodeDJPUrl,
+        s.npwpStatus
+      ].join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Data_PLN_Coretax_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDownloadTemplate = () => {
+    const headers = ["Nama Pegawai", "NIP", "Unit", "NPWP Status (Gabung/Pisah)"];
+    const csvContent = [headers.join(",")].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "Template_Upload_PLN.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        alert("Fitur Import Berhasil Membaca Data. Di tahap ini, data dibaca secara lokal. Untuk integrasi penuh masal ke Sheets, hubungi Administrator.");
+        console.log("CSV Data:", text);
+      };
+      reader.readAsText(file);
+    }
+  };
+
   const filteredData = submissions.filter(s => 
     s.nama.toLowerCase().includes(search.toLowerCase()) || 
     s.nip.includes(search) || 
@@ -139,28 +192,48 @@ function doGet() {
   return (
     <div className="animate-fade-in space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-        <div>
-          <h2 className="text-3xl font-bold text-gray-900">Dashboard Control</h2>
-          <div className="flex gap-4 mt-2">
-             <button 
-              onClick={() => setActiveTab('data')}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'data' ? 'bg-[#0059A1] text-white' : 'bg-gray-100 text-gray-500'}`}
-            >
-              Database Pegawai
-            </button>
-            <button 
-              onClick={() => setActiveTab('config')}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'config' ? 'bg-[#0059A1] text-white' : 'bg-gray-100 text-gray-500'}`}
-            >
-              Konfigurasi Cloud
-            </button>
+        <div className="flex items-center gap-4">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900">Dashboard Control</h2>
+            <div className="flex gap-4 mt-2">
+               <button 
+                onClick={() => setActiveTab('data')}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'data' ? 'bg-[#0059A1] text-white' : 'bg-gray-100 text-gray-500'}`}
+              >
+                Database Pegawai
+              </button>
+              <button 
+                onClick={() => setActiveTab('config')}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'config' ? 'bg-[#0059A1] text-white' : 'bg-gray-100 text-gray-500'}`}
+              >
+                Konfigurasi Cloud
+              </button>
+            </div>
+          </div>
+          <div className={`p-4 rounded-2xl border flex flex-col items-center justify-center transition-all ${syncStatus === 'connected' ? 'bg-green-50 border-green-200 text-green-700' : syncStatus === 'connecting' ? 'bg-yellow-50 border-yellow-200 text-yellow-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+            {syncStatus === 'connected' ? <ShieldCheck size={24} /> : syncStatus === 'connecting' ? <RefreshCw className="animate-spin" size={24} /> : <AlertCircle size={24} />}
+            <span className="text-[10px] font-bold uppercase mt-1">Status: {syncStatus}</span>
           </div>
         </div>
+        
         <div className="flex flex-wrap gap-3">
-          <button className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-200 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition-all text-sm shadow-sm">
+          <input type="file" ref={fileInputRef} onChange={handleImport} className="hidden" accept=".csv" />
+          <button 
+            onClick={handleDownloadTemplate}
+            className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-200 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition-all text-sm shadow-sm"
+          >
             <Download size={18} /> Template
           </button>
-          <button className="flex items-center gap-2 px-5 py-3 bg-[#FFD100] text-[#0059A1] rounded-xl font-bold hover:brightness-95 transition-all text-sm shadow-sm">
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 px-5 py-3 bg-blue-50 text-[#0059A1] rounded-xl font-bold hover:bg-blue-100 transition-all text-sm shadow-sm border border-blue-100"
+          >
+            <Upload size={18} /> Import Data
+          </button>
+          <button 
+            onClick={handleExport}
+            className="flex items-center gap-2 px-5 py-3 bg-[#FFD100] text-[#0059A1] rounded-xl font-bold hover:brightness-95 transition-all text-sm shadow-sm"
+          >
             <FileSpreadsheet size={18} /> Export Data
           </button>
         </div>
@@ -174,7 +247,7 @@ function doGet() {
                 <div className="p-2 bg-green-50 text-green-600 rounded-lg"><FileSpreadsheet size={20} /></div>
                 <div>
                   <p className="font-bold text-gray-900">Database Spreadsheet</p>
-                  <p className="text-xs text-gray-500">Sync status: Real-time</p>
+                  <p className="text-xs text-gray-500">Sync status: {syncStatus === 'connected' ? 'Connected' : 'Syncing...'}</p>
                 </div>
               </div>
               <ExternalLink size={16} className="text-gray-400 group-hover:text-green-500" />
@@ -243,97 +316,32 @@ function doGet() {
         </>
       ) : (
         <div className="space-y-6 animate-fade-in">
-          {/* Troubleshooting Alert */}
-          <div className="bg-amber-50 border-2 border-amber-200 p-6 rounded-2xl flex items-start gap-4">
-            <AlertTriangle className="text-amber-600 shrink-0 mt-1" size={24} />
-            <div>
-              <h3 className="font-bold text-amber-900">Solusi Layar Kosong (Blank Screen) di Vercel</h3>
-              <p className="text-sm text-amber-800 mt-1 leading-relaxed">
-                Jika setelah klik link Vercel layar tetap kosong, pastikan Anda telah melakukan <b>PUSH</b> file <code className="bg-amber-100 px-1 rounded">package.json</code>, <code className="bg-amber-100 px-1 rounded">vite.config.ts</code>, dan <code className="bg-amber-100 px-1 rounded">index.html</code> terbaru ke GitHub. Vercel membutuhkan file tersebut untuk memproses kode <i>.tsx</i> menjadi tampilan web.
-              </p>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+              <div className="flex items-center gap-3">
+                <Code className="text-[#0059A1]" />
+                <h3 className="font-bold text-gray-900">Salin Data Script Google Apps Script</h3>
+              </div>
+              <button 
+                onClick={copyToClipboard}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all shadow-md ${copied ? 'bg-green-500 text-white' : 'bg-[#0059A1] text-white hover:bg-[#004a86]'}`}
+              >
+                {copied ? <Check size={20} /> : <Copy size={20} />}
+                {copied ? 'Tersalin!' : 'Salin Kode App Script'}
+              </button>
             </div>
-          </div>
-
-          {/* Master Guide Vercel */}
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="bg-[#0059A1] p-6 text-white flex items-center gap-3">
-              <Settings />
-              <h3 className="text-xl font-bold">Master Guide: Konfigurasi Vercel & GitHub</h3>
-            </div>
-            
-            <div className="p-8 space-y-8">
-              <section className="space-y-4">
-                <div className="flex items-center gap-3 text-[#0059A1]">
-                  <Github size={24} />
-                  <h4 className="font-bold text-lg">Langkah 1: Persiapan GitHub</h4>
-                </div>
-                <div className="grid md:grid-cols-2 gap-4 text-sm">
-                  <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                    <p className="font-bold text-gray-700 mb-2">Struktur File Wajib:</p>
-                    <ul className="space-y-1 font-mono text-gray-500">
-                      <li>├── index.html (Root)</li>
-                      <li>├── index.tsx (Root)</li>
-                      <li>├── package.json (Root)</li>
-                      <li>├── vite.config.ts (Root)</li>
-                      <li>└── vercel.json (Root)</li>
-                    </ul>
-                  </div>
-                  <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                    <p className="font-bold text-gray-700 mb-2">Instruksi Push:</p>
-                    <p className="text-gray-600 italic">"Gunakan perintah git add . && git commit -m 'Setup build' && git push origin main agar semua file masuk ke Vercel."</p>
-                  </div>
-                </div>
-              </section>
-
-              <hr className="border-gray-100" />
-
-              <section className="space-y-4">
-                <div className="flex items-center gap-3 text-blue-600">
-                  <Globe size={24} />
-                  <h4 className="font-bold text-lg">Langkah 2: Pengaturan di Dashboard Vercel</h4>
-                </div>
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-600">Saat mengimport repository di Vercel, pastikan pengaturan <b>Build & Development Settings</b> diisi seperti berikut:</p>
-                  <div className="bg-gray-900 p-6 rounded-2xl text-blue-300 font-mono text-sm space-y-2">
-                    <div className="flex justify-between border-b border-gray-800 pb-2"><span className="text-gray-500">Framework Preset</span> <span>Vite</span></div>
-                    <div className="flex justify-between border-b border-gray-800 pb-2"><span className="text-gray-500">Root Directory</span> <span>./ (kosongkan)</span></div>
-                    <div className="flex justify-between border-b border-gray-800 pb-2"><span className="text-gray-500">Build Command</span> <span>npm run build</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Output Directory</span> <span>dist</span></div>
-                  </div>
-                </div>
-              </section>
-
-              <hr className="border-gray-100" />
-
-              <section className="space-y-4">
-                <div className="flex items-center gap-3 text-purple-600">
-                  <Code size={24} />
-                  <h4 className="font-bold text-lg">Langkah 3: Google Apps Script (Script Wajib)</h4>
-                </div>
-                <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden">
-                   <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-100">
-                    <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Salin Kode Ini ke Apps Script</span>
-                    <button 
-                      onClick={copyToClipboard}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all text-xs ${copied ? 'bg-green-500 text-white' : 'bg-[#0059A1] text-white'}`}
-                    >
-                      {copied ? <Check size={14} /> : <Copy size={14} />}
-                      {copied ? 'Tersalin!' : 'Salin Kode'}
-                    </button>
-                  </div>
-                  <pre className="p-6 text-xs font-mono text-gray-400 bg-gray-900 overflow-x-auto max-h-[300px]">
-                    <code>{gasCode}</code>
-                  </pre>
-                </div>
-              </section>
+            <div className="p-0">
+              <pre className="p-8 text-sm font-mono text-gray-400 bg-gray-900 overflow-x-auto max-h-[500px] leading-relaxed">
+                <code>{gasCode}</code>
+              </pre>
             </div>
           </div>
           
           <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 flex gap-4">
-            <HelpCircle className="text-[#0059A1] shrink-0" />
+            <RefreshCw className="text-[#0059A1] shrink-0" />
             <div>
-              <p className="font-bold text-[#0059A1]">Tips Tambahan</p>
-              <p className="text-sm text-blue-800 mt-1">Jika Anda baru saja mengubah URL Web App di <b>constants.ts</b>, pastikan Anda men-deploy ulang Vercel agar perubahan tersimpan di website live.</p>
+              <p className="font-bold text-[#0059A1]">Penting!</p>
+              <p className="text-sm text-blue-800 mt-1">Pastikan Anda telah melakukan "Deploy" sebagai Web App di Google Apps Script editor dengan akses "Anyone" agar sinkronisasi berfungsi dengan benar.</p>
             </div>
           </div>
         </div>

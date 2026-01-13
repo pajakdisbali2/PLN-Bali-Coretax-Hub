@@ -11,12 +11,15 @@ import { APP_CONFIG } from './constants';
 const App: React.FC = () => {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
 
   // Sync data from Google Sheets on Load
   useEffect(() => {
     const fetchSheetData = async () => {
+      setSyncStatus('connecting');
       try {
         const response = await fetch(APP_CONFIG.WEB_APP_URL);
+        if (!response.ok) throw new Error("Network response was not ok");
         const data = await response.json();
         
         // Skip header row if data exists
@@ -34,8 +37,10 @@ const App: React.FC = () => {
           setSubmissions(mappedData);
           localStorage.setItem('pln_submissions', JSON.stringify(mappedData));
         }
+        setSyncStatus('connected');
       } catch (error) {
         console.warn("Could not sync with Google Sheets, using local backup.");
+        setSyncStatus('error');
         const saved = localStorage.getItem('pln_submissions');
         if (saved) setSubmissions(JSON.parse(saved));
       }
@@ -87,9 +92,9 @@ const App: React.FC = () => {
           </nav>
 
           <div className="p-6 border-t border-gray-100">
-            <div className="flex items-center gap-2 text-xs text-gray-400 font-medium">
-              <ShieldCheck size={14} />
-              <span>Cloud Sync Active</span>
+            <div className="flex items-center gap-2 text-xs font-medium">
+              <div className={`w-2 h-2 rounded-full animate-pulse ${syncStatus === 'connected' ? 'bg-green-500' : syncStatus === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
+              <span className="text-gray-400">Cloud Sync: {syncStatus === 'connected' ? 'Active' : syncStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}</span>
             </div>
           </div>
         </aside>
@@ -120,7 +125,7 @@ const App: React.FC = () => {
             <Route path="/" element={<Navigate to="/input" replace />} />
             <Route path="/input" element={<InputData onAdd={addSubmission} />} />
             <Route path="/recap" element={<RecapData submissions={submissions} />} />
-            <Route path="/dashboard" element={<Dashboard submissions={submissions} />} />
+            <Route path="/dashboard" element={<Dashboard submissions={submissions} syncStatus={syncStatus} />} />
           </Routes>
         </main>
       </div>

@@ -71,22 +71,21 @@ const InputData: React.FC<InputDataProps> = ({ onAdd }) => {
       };
 
       // Send to Google Apps Script
-      const response = await fetch(APP_CONFIG.WEB_APP_URL, {
+      await fetch(APP_CONFIG.WEB_APP_URL, {
         method: 'POST',
-        mode: 'no-cors', // Apps Script requires no-cors if not using specialized headers
+        mode: 'no-cors',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload)
       });
 
-      // Since we use no-cors, we can't read the body, so we assume success if no error thrown
       const newSubmission: Submission = {
         id: Math.random().toString(36).substr(2, 9),
         nama: formData.nama,
         nip: formData.nip,
         unit: formData.unit,
-        buktiSertifikatUrl: APP_CONFIG.DRIVE_FOLDER_URL, // Placeholder, usually script returns real URL
+        buktiSertifikatUrl: APP_CONFIG.DRIVE_FOLDER_URL,
         suratKodeDJPUrl: APP_CONFIG.DRIVE_FOLDER_URL,
         npwpStatus: formData.npwpStatus,
         timestamp: new Date().toISOString()
@@ -95,7 +94,6 @@ const InputData: React.FC<InputDataProps> = ({ onAdd }) => {
       onAdd(newSubmission);
       setSuccess(true);
       
-      // Reset form
       setFormData({
         nama: '',
         nip: '',
@@ -177,8 +175,8 @@ const InputData: React.FC<InputDataProps> = ({ onAdd }) => {
             <div className="space-y-3">
               <label className="block text-sm font-semibold text-gray-700">Bukti Penerimaan Surat (Sertifikat Elektronik)</label>
               <div className="bg-blue-50 p-3 rounded-lg flex items-start gap-3 border border-blue-100">
-                <Info size={16} className="text-blue-500 mt-0.5 shrink-0" />
-                <p className="text-xs text-blue-700 leading-relaxed">Unduh di Portal Saya &rarr; Dokumen Saya &rarr; Refresh.</p>
+                <Info size={16} className="text-[#0059A1] mt-0.5 shrink-0" />
+                <p className="text-xs text-[#0059A1] leading-relaxed font-medium">Dapat diunduh pada Portal Saya lalu pilih Dokumen Saya lalu Refresh.</p>
               </div>
               <div className={`relative border-2 border-dashed rounded-xl p-4 transition-colors text-center ${files.buktiSertifikat ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:border-blue-300'}`}>
                 <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => handleFileChange(e, 'buktiSertifikat')} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
@@ -192,8 +190,8 @@ const InputData: React.FC<InputDataProps> = ({ onAdd }) => {
             <div className="space-y-3">
               <label className="block text-sm font-semibold text-gray-700">Surat Penerbitan Kode Otorisasi DJP</label>
               <div className="bg-blue-50 p-3 rounded-lg flex items-start gap-3 border border-blue-100">
-                <Info size={16} className="text-blue-500 mt-0.5 shrink-0" />
-                <p className="text-xs text-blue-700 leading-relaxed">Unduh di Portal Saya &rarr; Dokumen Saya &rarr; Refresh.</p>
+                <Info size={16} className="text-[#0059A1] mt-0.5 shrink-0" />
+                <p className="text-xs text-[#0059A1] leading-relaxed font-medium">Dapat diunduh pada Portal Saya lalu pilih Dokumen Saya lalu Refresh.</p>
               </div>
               <div className={`relative border-2 border-dashed rounded-xl p-4 transition-colors text-center ${files.suratKodeDJP ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:border-blue-300'}`}>
                 <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => handleFileChange(e, 'suratKodeDJP')} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
@@ -209,9 +207,9 @@ const InputData: React.FC<InputDataProps> = ({ onAdd }) => {
 
           <div className="space-y-4">
             <label className="block text-sm font-semibold text-gray-700">Apakah sudah melakukan penggabungan NPWP?</label>
-            <div className="bg-amber-50 p-3 rounded-lg flex items-start gap-3 border border-amber-100">
-              <AlertCircle size={16} className="text-amber-500 mt-0.5 shrink-0" />
-              <p className="text-xs text-amber-800">Cek di Portal &rarr; Profil &rarr; Informasi Umum &rarr; Unit Pajak Keluarga.</p>
+            <div className="bg-blue-50 p-3 rounded-lg flex items-start gap-3 border border-blue-100">
+              <AlertCircle size={16} className="text-[#0059A1] mt-0.5 shrink-0" />
+              <p className="text-xs text-[#0059A1] leading-relaxed font-medium">Dapat dilihat pada Portal Saya lalu pilih Profil Saya lalu pilih Informasi Umum lalu pilih Edit lalu pilih Unit Pajak Keluarga, NPWP istri harus dinonaktifkan terlebih dahulu.</p>
             </div>
             <div className="flex gap-4">
               <label className={`flex-1 flex items-center justify-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.npwpStatus === 'Gabung' ? 'bg-blue-50 border-[#0059A1] text-[#0059A1] font-bold' : 'border-gray-100 hover:bg-gray-50'}`}>
