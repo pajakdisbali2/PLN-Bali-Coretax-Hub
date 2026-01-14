@@ -55,7 +55,9 @@ const App: React.FC = () => {
     localStorage.setItem('pln_submissions', JSON.stringify(updated));
   };
 
-  const NavItem = ({ to, children, icon: Icon }: { to: string, children: React.ReactNode, icon: any }) => (
+  // Fix: Added optional children to the type definition to resolve TS error: 
+  // Property 'children' is missing in type '{ to: string; icon: any; }' but required in type '{ to: string; children: React.ReactNode; icon: any; }'.
+  const NavItem = ({ to, children, icon: Icon }: { to: string, children?: React.ReactNode, icon: any }) => (
     <NavLink
       to={to}
       onClick={() => setIsMobileMenuOpen(false)}

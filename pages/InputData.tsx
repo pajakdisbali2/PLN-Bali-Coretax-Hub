@@ -117,7 +117,7 @@ const InputData: React.FC<InputDataProps> = ({ onAdd }) => {
   return (
     <div className="animate-fade-in">
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900">Input Data Pegawai</h2>
+        <h2 className="text-3xl font-bold text-gray-900">Input Data Aktivasi Akun Coretax Anda</h2>
         <p className="text-gray-500 mt-2">Data Anda akan otomatis tersinkronisasi dengan Google Sheets & Drive.</p>
       </div>
 
