@@ -153,6 +153,7 @@ const InputData: React.FC<InputDataProps> = ({ onAdd }) => {
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#0059A1] focus:border-transparent outline-none transition-all"
                 placeholder="Nomor Induk Pegawai"
               />
+              <p className="text-[11px] text-gray-400 mt-1 italic">Contoh Penulisan: 9720002ZY</p>
             </div>
           </div>
 
