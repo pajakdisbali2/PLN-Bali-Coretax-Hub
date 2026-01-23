@@ -1,16 +1,18 @@
 
 import React, { useState, useRef } from 'react';
-import { Submission, UnitName } from '../types';
+import { Submission, UnitStats } from '../types';
 import { APP_CONFIG } from '../constants';
-import { Lock, FileSpreadsheet, Download, Upload, ExternalLink, Link2, Search, Copy, Check, Code, ShieldCheck, AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
+import { Lock, FileSpreadsheet, Download, Upload, ExternalLink, Link2, Search, Copy, Check, Code, ShieldCheck, AlertCircle, RefreshCw, Loader2, Users } from 'lucide-react';
 
 interface DashboardProps {
   submissions: Submission[];
   syncStatus: 'connecting' | 'connected' | 'error';
   onRefresh: () => void;
+  unitTotals: UnitStats[];
+  onUpdateUnitTotals: (newTotals: UnitStats[]) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ submissions, syncStatus, onRefresh }) => {
+const Dashboard: React.FC<DashboardProps> = ({ submissions, syncStatus, onRefresh, unitTotals, onUpdateUnitTotals }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,6 +21,9 @@ const Dashboard: React.FC<DashboardProps> = ({ submissions, syncStatus, onRefres
   const [activeTab, setActiveTab] = useState<'data' | 'config'>('data');
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Local state for editing unit totals
+  const [localUnitTotals, setLocalUnitTotals] = useState<UnitStats[]>(unitTotals);
 
   const gasCode = `/**
  * GOOGLE APPS SCRIPT - PLN CORETAX HUB SYNC
@@ -175,6 +180,18 @@ function doGet() {
     reader.readAsText(file);
   };
 
+  const updateLocalTotal = (index: number, val: string) => {
+    const newVal = parseInt(val) || 0;
+    const updated = [...localUnitTotals];
+    updated[index] = { ...updated[index], totalPegawai: newVal };
+    setLocalUnitTotals(updated);
+  };
+
+  const submitUnitTotals = () => {
+    onUpdateUnitTotals(localUnitTotals);
+    alert("Jumlah pegawai berhasil diperbarui dan disinkronkan ke Rekap Data!");
+  };
+
   const filteredData = submissions.filter(s => 
     s.nama.toLowerCase().includes(search.toLowerCase()) || 
     s.nip.includes(search) || 
@@ -296,6 +313,59 @@ function doGet() {
                 </div>
               </div>
               <button onClick={onRefresh} className="p-2 hover:bg-gray-50 rounded-lg transition-all"><RefreshCw size={16} /></button>
+            </div>
+          </div>
+
+          {/* New Management Table: Unit Totals */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+            <div className="p-6 border-b border-gray-50 bg-blue-50/30 flex items-center justify-between">
+              <div className="flex items-center gap-3 text-[#0059A1]">
+                <Users size={20} />
+                <h3 className="font-bold">Manajemen Target Pegawai per Unit</h3>
+              </div>
+              <button 
+                onClick={submitUnitTotals}
+                className="bg-[#0059A1] text-white px-6 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-[#004a86] transition-all"
+              >
+                Submit & Sinkronkan Semua
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Unit Kerja</th>
+                    <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase text-center">Jumlah Pegawai Saat Ini</th>
+                    <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase text-center">Ubah Jumlah Pegawai</th>
+                    <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {localUnitTotals.map((unit, idx) => (
+                    <tr key={unit.name} className="hover:bg-gray-50/50">
+                      <td className="px-6 py-4 font-bold text-gray-900">{unit.name}</td>
+                      <td className="px-6 py-4 text-center text-gray-500">{unit.totalPegawai}</td>
+                      <td className="px-6 py-4 text-center">
+                        <input
+                          type="number"
+                          className="w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-center"
+                          value={unit.totalPegawai}
+                          onChange={(e) => updateLocalTotal(idx, e.target.value)}
+                        />
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <button 
+                          onClick={submitUnitTotals}
+                          className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-all shadow-sm"
+                          title="Simpan Baris Ini"
+                        >
+                          <Check size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 

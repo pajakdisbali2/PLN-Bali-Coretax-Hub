@@ -5,11 +5,15 @@ import { LayoutDashboard, FileInput, BarChart3, ShieldCheck, Zap, Menu, X } from
 import InputData from './pages/InputData';
 import RecapData from './pages/RecapData';
 import Dashboard from './pages/Dashboard';
-import { Submission, UnitName } from './types';
-import { APP_CONFIG } from './constants';
+import { Submission, UnitName, UnitStats } from './types';
+import { APP_CONFIG, UNIT_TOTALS } from './constants';
 
 const App: React.FC = () => {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [unitTotals, setUnitTotals] = useState<UnitStats[]>(() => {
+    const saved = localStorage.getItem('pln_unit_totals');
+    return saved ? JSON.parse(saved) : UNIT_TOTALS;
+  });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
 
@@ -49,14 +53,20 @@ const App: React.FC = () => {
     fetchSheetData();
   }, [fetchSheetData]);
 
+  useEffect(() => {
+    localStorage.setItem('pln_unit_totals', JSON.stringify(unitTotals));
+  }, [unitTotals]);
+
   const addSubmission = (newSub: Submission) => {
     const updated = [newSub, ...submissions];
     setSubmissions(updated);
     localStorage.setItem('pln_submissions', JSON.stringify(updated));
   };
 
-  // Fix: Added optional children to the type definition to resolve TS error: 
-  // Property 'children' is missing in type '{ to: string; icon: any; }' but required in type '{ to: string; children: React.ReactNode; icon: any; }'.
+  const updateUnitTotals = (newTotals: UnitStats[]) => {
+    setUnitTotals(newTotals);
+  };
+
   const NavItem = ({ to, children, icon: Icon }: { to: string, children?: React.ReactNode, icon: any }) => (
     <NavLink
       to={to}
@@ -122,8 +132,8 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/" element={<Navigate to="/input" replace />} />
             <Route path="/input" element={<InputData onAdd={addSubmission} />} />
-            <Route path="/recap" element={<RecapData submissions={submissions} />} />
-            <Route path="/dashboard" element={<Dashboard submissions={submissions} syncStatus={syncStatus} onRefresh={fetchSheetData} />} />
+            <Route path="/recap" element={<RecapData submissions={submissions} unitTotals={unitTotals} />} />
+            <Route path="/dashboard" element={<Dashboard submissions={submissions} syncStatus={syncStatus} onRefresh={fetchSheetData} unitTotals={unitTotals} onUpdateUnitTotals={updateUnitTotals} />} />
           </Routes>
         </main>
       </div>

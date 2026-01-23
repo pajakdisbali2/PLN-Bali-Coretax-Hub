@@ -1,16 +1,16 @@
 
 import React, { useMemo } from 'react';
-import { Submission } from '../types';
-import { UNIT_TOTALS } from '../constants';
-import { TrendingUp, Users, CheckCircle, Clock, Link2, Users2 } from 'lucide-react';
+import { Submission, UnitStats } from '../types';
+import { TrendingUp, Users, CheckCircle, Users2 } from 'lucide-react';
 
 interface RecapDataProps {
   submissions: Submission[];
+  unitTotals: UnitStats[];
 }
 
-const RecapData: React.FC<RecapDataProps> = ({ submissions }) => {
+const RecapData: React.FC<RecapDataProps> = ({ submissions, unitTotals }) => {
   const stats = useMemo(() => {
-    return UNIT_TOTALS.map(unit => {
+    return unitTotals.map(unit => {
       const unitSubmissions = submissions.filter(s => s.unit === unit.name);
       const count = unitSubmissions.length;
       const totalGabung = unitSubmissions.filter(s => s.npwpStatus === 'Gabung').length;
@@ -21,14 +21,14 @@ const RecapData: React.FC<RecapDataProps> = ({ submissions }) => {
         totalMengisi: count,
         totalGabung,
         totalPisah,
-        percentMengisi: ((count / unit.totalPegawai) * 100).toFixed(1),
+        percentMengisi: unit.totalPegawai > 0 ? ((count / unit.totalPegawai) * 100).toFixed(1) : "0.0",
         percentGabung: unit.totalPegawai > 0 ? ((totalGabung / unit.totalPegawai) * 100).toFixed(1) : "0.0",
         percentPisah: unit.totalPegawai > 0 ? ((totalPisah / unit.totalPegawai) * 100).toFixed(1) : "0.0",
         belumMengisi: unit.totalPegawai - count,
-        percentBelum: (((unit.totalPegawai - count) / unit.totalPegawai) * 100).toFixed(1),
+        percentBelum: unit.totalPegawai > 0 ? (((unit.totalPegawai - count) / unit.totalPegawai) * 100).toFixed(1) : "0.0",
       };
     });
-  }, [submissions]);
+  }, [submissions, unitTotals]);
 
   const aggregate = useMemo(() => {
     const totalP = stats.reduce((acc, curr) => acc + curr.totalPegawai, 0);
